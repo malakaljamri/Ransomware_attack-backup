@@ -1,0 +1,65 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Challenge 3</title>
+</head>
+<body style="font-family: Arial, sans-serif; padding: 2rem; background-color: #f4f4f4;">
+
+  <h2 style="color: #333; margin-bottom: 1rem;">
+    Challenge 3: you can't solve it :)
+  </h2>
+
+  <a href="/static/logs.txt" download style="color: #007bff; text-decoration: none; font-weight: 500;">
+    Download logs.txt
+  </a>
+
+  <form method="POST" action="/youcantsolveme" style="max-width: 400px; margin-top: 1rem;">
+    <label for="line" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #555;">
+    </label>
+    <input
+      type="text"
+      name="line"
+      id="line"
+      required
+      style="
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 1rem;
+      "
+    >
+    <button
+      type="submit"
+      style="
+        margin-top: 1rem;
+        padding: 0.6rem 1.2rem;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+      "
+      onmouseover="this.style.backgroundColor='#0056b3'"
+      onmouseout="this.style.backgroundColor='#007bff'"
+    >
+      Submit
+    </button>
+  </form>
+
+  {% if error %}
+    <p style="color: red; margin-top: 1rem;">{{ error }}</p>
+  {% endif %}
+
+  {% if message %}
+    <pre style="margin-top: 2rem; padding: 1rem; background: #fff; border: 1px dashed #333;">
+{{ message }}
+    </pre>
+  {% endif %}
+
+</body>
+</html>

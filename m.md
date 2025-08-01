@@ -1,0 +1,5 @@
+source venv/bin/activate
+
+pip install flask
+
+0b0a3a62985f9b8b91c7c625e78d103b3bce2eb9203c44148daed1ad4346cf94

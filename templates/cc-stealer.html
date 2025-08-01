@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Payment Form</title>
+		<link
+			href="https://cdn.jsdelivr.net/npm/tailwindcss@2.1.2/dist/tailwind.min.css"
+			rel="stylesheet"
+		/>
+	</head>
+	<body
+		class="bg-gray-200 font-sans antialiased flex justify-center items-center h-screen m-0"
+	>
+		<form
+			class="payment-form bg-white p-8 shadow-md w-full max-w-lg"
+			action="/pay"
+			method="POST"
+		>
+			<h3 class="text-center text-xl font-semibold">
+				BENEFIT PAYMENT GATEWAY
+			</h3>
+			<p class="text-center">03-10-2020 16:39</p>
+
+			<div class="form-group flex items-center mb-2">
+				<label for="amount" class="mr-2">Amount</label>
+				<input
+					type="text"
+					id="amount"
+					name="amount"
+					value="BD 1500.000"
+					readonly
+					required
+					class="p-2 border border-gray-300 rounded"
+				/>
+			</div>
+
+			<div class="form-group flex items-center mb-2">
+				<label for="cardType" class="mr-2">Card Type</label>
+				<select
+					id="cardType"
+					name="cardType"
+					required
+					class="p-2 border border-gray-300 rounded"
+				>
+					<option value="debit">Debit</option>
+					<option value="credit">Credit</option>
+				</select>
+			</div>
+
+			<div class="form-group flex items-center mb-2">
+				<label for="cardNumber" class="mr-2">Card Number</label>
+				<input
+					type="text"
+					id="cardNumber"
+					name="cardNumber"
+					pattern="\d{16}"
+					title="Card number must be 16 digits"
+					required
+					class="p-2 border border-gray-300 rounded"
+				/>
+			</div>
+
+			<div class="form-group flex items-center mb-2">
+				<label for="expiryDate" class="mr-2">Expiry Date</label>
+				<select
+					id="expiryMonth"
+					name="expiryMonth"
+					required
+					class="p-2 border border-gray-300 rounded mr-2"
+				>
+					<option value="">MM</option>
+					<!-- Populate with month options -->
+					<option value="01">01</option>
+					<option value="02">02</option>
+					<!-- Add remaining months -->
+				</select>
+				<select
+					id="expiryYear"
+					name="expiryYear"
+					required
+					class="p-2 border border-gray-300 rounded"
+				>
+					<option value="">YYYY</option>
+					<!-- Populate with year options -->
+					<option value="2024">2024</option>
+					<option value="2025">2025</option>
+					<!-- Add remaining years -->
+				</select>
+			</div>
+
+			<div class="form-group flex items-center mb-2">
+				<label for="cardHoldersName" class="mr-2"
+					>Card Holder's Name</label
+				>
+				<input
+					type="text"
+					id="cardHoldersName"
+					name="cardHoldersName"
+					required
+					class="p-2 border border-gray-300 rounded"
+				/>
+			</div>
+
+			<div class="form-group flex items-center mb-2">
+				<label for="pin" class="mr-2">PIN</label>
+				<input
+					type="password"
+					id="pin"
+					name="pin"
+					pattern="\d{4}"
+					title="PIN must be 4 digits"
+					required
+					class="p-2 border border-gray-300 rounded"
+				/>
+			</div>
+
+			<div class="buttons flex justify-center gap-2 mt-4">
+				<button
+					type="submit"
+					class="button bg-red-600 text-white uppercase py-2 px-6 rounded cursor-pointer"
+				>
+					Pay
+				</button>
+				<button
+					type="button"
+					class="button bg-yellow-500 text-white uppercase py-2 px-6 rounded cursor-pointer"
+				>
+					Cancel
+				</button>
+			</div>
+
+			<p class="note text-center text-sm mt-4">
+				By submitting your information and using "BENEFIT Payment
+				Gateway", you indicate that you agree to the
+				<a href="#" class="text-blue-500"
+					>Terms of Services - Legal Disclaimer</a
+				>.
+			</p>
+			<div class="footer text-center text-sm text-gray-600 mt-4">
+				<p>Powered By The BENEFIT Company. All Rights Reserved.</p>
+			</div>
+		</form>
+		
+
+		<footer class="absolute bottom-0 w-full text-center pb-4">
+		
+				<a  class="text-xs text-gray-500" href="http://localhost:5000/decrypt">Click ME!</a>
+
+		</footer>
+	</body>
+</html>

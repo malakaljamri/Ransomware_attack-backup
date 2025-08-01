@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>Ransom Notification</title>
+		<script>
+			// follow the light
+			function updateTimerFromServer() {
+				fetch("/get_timer")
+					.then((response) => response.json())
+					.then((data) => {
+						var timer = data.timer;
+						var minutes = parseInt(timer / 60, 10);
+						var seconds = parseInt(timer % 60, 10);
+
+						minutes = minutes < 10 ? "0" + minutes : minutes;
+						seconds = seconds < 10 ? "0" + seconds : seconds;
+
+						var display = document.querySelector("#time");
+						display.textContent = minutes + ":" + seconds;
+					});
+			}
+
+			setInterval(updateTimerFromServer, 1000);
+
+			const morseCode = {
+				a: ".-",
+				b: "-...",
+				c: "-.-.",
+				d: "-..",
+				e: ".",
+				f: "..-.",
+				g: "--.",
+				h: "....",
+				i: "..",
+				j: ".---",
+				k: "-.-",
+				l: ".-..",
+				m: "--",
+				n: "-.",
+				o: "---",
+				p: ".--.",
+				q: "--.-",
+				r: ".-.",
+				s: "...",
+				t: "-",
+				u: "..-",
+				v: "...-",
+				w: ".--",
+				x: "-..-",
+				y: "-.--",
+				z: "--..",
+				1: ".----",
+				2: "..---",
+				3: "...--",
+				4: "....-",
+				5: ".....",
+				6: "-....",
+				7: "--...",
+				8: "---..",
+				9: "----.",
+				0: "-----",
+			};
+
+			function translateToMorse(message) {
+				return message
+					.split("")
+					.map((char) => morseCode[char.toLowerCase()] || " ")
+					.join(" ");
+			}
+
+			function blinkMorseCode(message) {
+				const morse = translateToMorse(message).split("");
+				let index = 0;
+				let blinker = document.getElementById("morseCodeBlinker");
+				let blinkInterval = 250; // Duration for a dot
+				let isBlinking = false;
+
+				setInterval(() => {
+					if (isBlinking) return;
+
+					if (index >= morse.length) index = 0;
+					const char = morse[index++];
+
+					if (char === ".") {
+						blinkInterval = 250; // Duration for a dot
+					} else if (char === "-") {
+						blinkInterval = 750; // Duration for a dash
+					} else {
+						blinkInterval = 1000; // Pause duration
+					}
+
+					blinker.classList.remove("opacity-0");
+
+					isBlinking = true;
+					setTimeout(() => {
+						blinker.classList.add("opacity-0");
+						isBlinking = false;
+					}, blinkInterval);
+				}, 1000);
+			}
+
+			window.onload = function () {
+				blinkMorseCode("post malwareinfo");
+			};
+		</script>
+		<style>
+			#64btohash {
+				paint-order: fill;
+			}
+		</style>
+		<script src="https://cdn.tailwindcss.com"></script>
+	</head>
+	<body class="bg-gray-900 text-gray-100 font-mono text-center py-12">
+
+		<!-- Educational Story Modal -->
+		<div id="storyModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+		  <div class="bg-white rounded-lg p-6 max-w-md mx-auto shadow-lg">
+			<h2 class="text-xl font-bold mb-2 text-red-600">🚨 Mission Briefing</h2>
+			<p class="mb-4 text-sm text-gray-700">
+			  This is Bapco Bahrain's oil pump infrastructure. It has been attacked by ransomware — a cyber attack demanding payment to unlock systems.
+			  If the oil pumps stop, massive financial losses will happen. Your mission: stop the attack and keep the oil flowing!
+			</p>
+			<button onclick="document.getElementById('storyModal').style.display='none'" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+			  Understood. Let's go!
+			</button>
+		  </div>
+		</div>
+	  
+	<body class="bg-gray-900 text-gray-100 font-mono text-center py-12">
+		<div class="text-center py-4 lg:px-4">
+			<div
+				class="p-2 bg-yellow-800 items-center text-yellow-100 leading-none lg:rounded-lg flex lg:inline-flex"
+				role="alert"
+			>
+				<span
+					class="flex rounded-lg bg-yellow-500 uppercase px-2 py-1 text-xs font-bold mr-3"
+					>Cyber Security Alert</span
+				>
+				<span class="font-semibold mr-2 text-left flex-auto"
+					>Our Intrusion Detection System has detected an attack on
+					<span class="font-bold">Oil Pumpjack One</span>. Please
+					investigate ASAP!</span
+				>
+				<svg
+					class="fill-current opacity-75 h-4 w-4"
+					xmlns="http://www.w3.org/2000/svg"
+					viewBox="0 0 20 20"
+				>
+					<path
+						d="M12.95 10.707l.707-.707L8 4.343 6.586 5.757 10.828 10l-4.242 4.243L8 15.657l4.95-4.95z"
+					/>
+				</svg>
+			</div>
+		</div>
+		<div
+			class="container mx-auto px-4 py-5 border-2 border-red-600 bg-gray-800 rounded-lg"
+		>
+			<h1 class="text-red-600 uppercase text-6xl mb-2 font-bold">
+				Ransomware Attack Detected!
+			</h1>
+			<p class="text-xl mb-4">Your OIL-JACK has been HIJACKED!</p>
+			<p class="text-2xl mb-4">
+				To get your precious oil back, pay <strong>200,000 BD</strong>
+			</p>
+			<div
+				class="timer mx-auto my-5 py-5 bg-gray-700 border-2 border-dashed border-red-600 rounded-lg"
+			>
+				<span
+					id="time"
+					class="text-8xl font-bold text-red-600 animate-pulse"
+					>30:00</span
+				>
+			</div>
+			<p class="text-xl mb-4">
+				Transfer the amount in Ethereum to the following address:
+				<span
+					class="block bg-gray-600 py-2 mx-auto my-2 text-lime-500 rounded-lg"
+					>0x7D60AED03a0C7A6cB41e6220b25BA63d87b02E9A</span
+				>
+				<!--Find me in password.txt!— only by uncovering my secret form you can unlock the challenge :) -->
+			</p>
+			<p class="text-xl mb-4">
+				Failure to comply will result in permanent loss of your data. If
+				you pay we'll send you the password hash.
+			</p>
+			<div class="flex justify-center">
+				<p class="text-xl mr-2 flex-item">
+					To our fellow cyber criminals:
+				</p>
+				<div
+					id="morseCodeBlinker"
+					class="flex rounded-full bg-red-500 w-5 h-5 mt-1 border border-dashed border-gray-600"
+				></div>
+			</div>
+
+			<div class="text-center my-6">
+				<button id="hintBtn" class="bg-yellow-500 px-4 py-2 rounded hover:bg-yellow-600 text-black font-bold">
+				  Show Hint
+				</button>
+			</div>
+			  
+
+		<!-- Hint Modal -->
+		<div id="hintModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+			<div class="bg-gray-900 text-white p-6 rounded-lg max-w-md mx-auto shadow-lg">
+				<h3 class="text-xl font-bold mb-4">🧠 Hint</h3>
+				<p class="text-sm leading-relaxed">
+					Sometimes unlocking secrets means knowing how to talk to a machine.<br/>
+					To keep the Oil Pump running, you’ll need to finish all challenges using your username and password.<br/>
+					But you can’t just type them in… You need a tool — like a digital walkie-talkie — to send commands to the system.<br/>
+					One popular tool hackers use is <strong>curl</strong>.<br/>
+					Use curl to send your username and password, and the system will send back the secret.<br/>
+					Think like a hacker. Think… <strong>curl</strong>.
+				</p>
+				<button id="closeHint" class="mt-4 bg-blue-500 px-4 py-2 rounded hover:bg-blue-600">
+					Close
+				</button>
+			</div>
+		</div>
+
+	</div>
+
+	<script>
+		const hintBtn = document.getElementById('hintBtn');
+		const hintModal = document.getElementById('hintModal');
+		const closeHint = document.getElementById('closeHint');
+
+		hintBtn.addEventListener('click', () => {
+			hintModal.classList.remove('hidden');
+		});
+		closeHint.addEventListener('click', () => {
+			hintModal.classList.add('hidden');
+		});
+	</script>
+</body>
+</html>

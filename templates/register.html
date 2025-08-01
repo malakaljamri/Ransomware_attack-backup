@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Register | Reboot Challenge</title>
+  <link
+    href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+    rel="stylesheet"
+  />
+  <style>
+    /* Animated gradient background */
+    .animated-bg {
+      background: linear-gradient(270deg, #facc15, #2563eb, #22c55e, #f87171);
+      background-size: 800% 800%;
+      animation: gradientBG 16s ease infinite;
+      border-radius: 1rem;
+      box-shadow: 0 0 25px rgba(250, 204, 21, 0.6);
+    }
+
+    @keyframes gradientBG {
+      0% {background-position: 0% 50%;}
+      50% {background-position: 100% 50%;}
+      100% {background-position: 0% 50%;}
+    }
+
+    /* Frosted glass effect */
+    .frosted-glass {
+      backdrop-filter: blur(10px);
+      background-color: rgba(31, 41, 55, 0.7); /* Tailwind slate-800 70% opacity */
+    }
+
+    /* Fancy underline animation for link */
+    a.underline-animated {
+      position: relative;
+      color: #3b82f6;
+      font-weight: 500;
+      text-decoration: none;
+      letter-spacing: 0.05em;
+      transition: color 0.3s ease;
+    }
+    a.underline-animated::after {
+      content: "";
+      position: absolute;
+      width: 0%;
+      height: 2px;
+      bottom: -2px;
+      left: 0;
+      background: #fbbf24; /* yellow-400 */
+      transition: width 0.3s ease;
+      border-radius: 1px;
+    }
+    a.underline-animated:hover {
+      color: #fbbf24;
+    }
+    a.underline-animated:hover::after {
+      width: 100%;
+    }
+
+    /* Input icon styles */
+    .input-icon {
+      position: relative;
+    }
+    .input-icon svg {
+      position: absolute;
+      top: 50%;
+      left: 12px;
+      transform: translateY(-50%);
+      width: 20px;
+      height: 20px;
+      stroke: #93c5fd; /* blue-300 */
+      pointer-events: none;
+    }
+    input.pl-10 {
+      padding-left: 2.5rem;
+    }
+  </style>
+</head>
+
+<body class="bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center min-h-screen font-sans text-gray-100">
+  <div class="animated-bg p-1 max-w-md w-full rounded-2xl">
+    <div class="frosted-glass p-8 rounded-2xl shadow-xl">
+      <div class="flex justify-center mb-6">
+        <img
+          src="../static/Asset 24x.png"
+          alt="Reboot"
+          class="w-44 h-auto object-contain"
+        />
+      </div>
+      <h2 class="text-3xl font-extrabold text-yellow-400 mb-8 text-center tracking-wide">Register</h2>
+      <form action="/submit_register" method="POST" class="space-y-6">
+        <div class="input-icon">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" >
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5.121 17.804A9 9 0 1118.803 5.122m-2.72 8.388a3 3 0 11-4.243-4.243"/>
+          </svg>
+          <input
+            type="text"
+            placeholder="Username"
+            id="Username"
+            name="Username"
+            class="w-full px-4 py-3 rounded-md bg-gray-800 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 pl-10 transition"
+            required
+          />
+        </div>
+        <div class="input-icon">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" >
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16 12h.01M12 16h.01M12 8h.01M6 12h.01M18 12h.01"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+          </svg>
+          <input
+            type="email"
+            placeholder="Email"
+            id="email"
+            name="email"
+            class="w-full px-4 py-3 rounded-md bg-gray-800 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 pl-10 transition"
+            required
+          />
+        </div>
+        <button
+          type="submit"
+          class="w-full bg-yellow-400 hover:bg-yellow-500 transition text-black font-extrabold py-3 rounded-md shadow-lg"
+        >
+          Register
+        </button>
+      </form>
+      <div class="text-center mt-6">
+        <a href="#" class="underline-animated text-sm">
+          Ready For the challenge?
+        </a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

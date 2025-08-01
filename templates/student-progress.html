@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>Student Progress</title>
+		<script src="https://cdn.tailwindcss.com"></script>
+		<link
+			href="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.2.1/flowbite.min.css"
+			rel="stylesheet"
+		/>
+	</head>
+	<body
+		class="bg-gray-900 text-gray-100 font-mono py-12 flex justify-center items-center min-h-screen"
+	>
+		<div class="w-full max-w-4xl">
+			<div
+				class="relative overflow-auto shadow-md sm:rounded-lg max-h-[50vh]"
+			>
+				<table
+					class="w-full text-sm text-left text-gray-500 dark:text-gray-400"
+				>
+					<thead
+						class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400 sticky top-0"
+					>
+						<tr>
+							<th scope="col" class="px-6 py-3">Name</th>
+							<th scope="col" class="px-6 py-3">
+								Current Points
+							</th>
+							<th scope="col" class="px-6 py-3">
+								Last Challenge
+							</th>
+							<th scope="col" class="px-6 py-3">
+								Task Completion
+							</th>
+						</tr>
+					</thead>
+					<tbody id="usersTable" class="bg-white dark:bg-gray-800">
+						<!-- Data rows will be inserted here -->
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+		<script>
+			async function fetchData() {
+				try {
+					const response = await fetch("http://localhost:5001/scoreboard" );
+
+					if (!response.ok)
+						throw new Error("Network response was not ok");
+						
+
+					const data = await response.json();
+					data.sort((a, b) => b.xp - a.xp);
+
+					const usersTable = document.getElementById("usersTable");
+					usersTable.innerHTML = ""; // Clear existing table content
+
+					data.forEach((user) => {
+						const challengesCompleted = Object.values(user)							
+							.slice(3, 7)
+							.filter((value) => {return value==1 }).length;
+						
+						const taskCompletion = `${challengesCompleted}/4`;
+						const lastChallengeIndex = Object.values(user)
+							.slice(3, 7)
+							.lastIndexOf(1);
+						const lastChallengeNames = [
+							"Not started",
+							"Malware Info",
+							"SQL injection 1",
+							"SQL injection 2",
+							"FINISHED",
+						];
+						const lastChallenge =
+							lastChallengeNames[lastChallengeIndex + 1] ||
+							"Not started";
+
+						const row = `
+                        <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                            <th scope="row" class="flex items-center px-6 py-4 text-gray-900 whitespace-nowrap dark:text-white">
+                                <img class="w-10 h-10 rounded-full" src="https://robohash.org/${
+									user.name
+								}.png" alt="${user.name} image" />
+                                <div class="ps-3">
+                                    <div class="text-base font-semibold">${
+										user.name
+									}</div>
+                                    <div class="font-normal text-gray-500">${
+										user.email
+									}</div>
+                                </div>
+                            </th>
+                            <td class="px-6 py-4 font-bold text-green-500">${
+								user.xp
+							}</td>
+                            <td class="px-6 py-4">
+                                <div class="flex items-center">
+                                    <div class="h-2.5 w-2.5 rounded-full ${
+										lastChallenge !== "Not started"
+											? "bg-green-500"
+											: "bg-red-500"
+									} me-2"></div>
+                                    ${lastChallenge}
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">${taskCompletion}</td>
+                        </tr>
+                    `;
+						usersTable.innerHTML += row;
+					});
+				} catch (error) {
+					console.error("Failed to fetch data:", error);
+				}
+			}
+
+			fetchData(); // Initial fetch
+			setInterval(fetchData, 1000); // Refresh every 10 seconds
+		</script>
+	</body>
+</html>
