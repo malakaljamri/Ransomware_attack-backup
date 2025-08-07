@@ -173,8 +173,8 @@ def submit_register():
    with get_db() as users:
         cursor = users.cursor()
         cursor.execute(
-            "INSERT OR IGNORE INTO users  (name ,email, xp, malwareinfo, sqlinjection1,  sqlinjection2, shutdown , final) VALUES(?,?,?,?,?,?,?,?)",
-            (username , email,0,0,0,0,0,0))
+            "INSERT OR IGNORE INTO users (name, email, xp, malwareinfo, Picture, IP, sqlinjection1, sqlinjection2, shutdown, final) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (username, email, 0, 0, 0, 0, 0, 0, 0, 0))
         users.commit()
         session['username'] = username  # ✅ Set session here
         if cursor.rowcount == 0:
@@ -291,11 +291,39 @@ def malak():
 
     if submitted_password == correct_password:
         # Show two lists and a form for the next answer
-        return render_template('youcantsolveme.html')
+        return render_template('wallet.html')
     else:
         return render_template('malak.html', error="Wrong password, try again.")
     
-from flask import Flask, render_template, request
+@app.route('/hello')
+def hello():
+    admin_status = request.cookies.get('admin')
+    if admin_status == '1':
+        return redirect('/youcantsolveme')
+    return render_template('hello.html')
+   
+    
+@app.route('/check-wallet', methods=['POST'])
+def check_wallet():
+    wallet_password = request.form.get('walletpassword')
+    if wallet_password == 'Sun Tzu':
+        # Correct password — set cookie admin=0
+        response = make_response(redirect('/hello'))
+        response.set_cookie('admin', '0')  # initially set as not admin
+        return response
+    else:
+        # Wrong password — reload form with error
+        return render_template('wallet.html', error="Wrong wallet password, try again.")
+    
+@app.route('/youcantsolveme')
+def secret_page():
+    admin_status = request.cookies.get('admin')
+    if admin_status == '1':
+        return render_template('youcantsolveme.html')
+    else:
+        return "<h2>Welcome, Admin!</h2><p>You now have full access.</p>"
+        
+   
 
 @app.route("/youcantsolveme", methods=["GET", "POST"])
 def youcantsolveme():
@@ -345,12 +373,6 @@ def view_table(table_name):
     conn.close()
 
     return render_template('table_view.html', table_name=table_name, rows=rows)
-
-
-
-
-
-
 
 @app.route('/scoreboard', methods=['GET'])
 def scoreboard():
