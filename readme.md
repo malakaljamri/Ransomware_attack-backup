@@ -1,8 +1,6 @@
-# Ransomware Simulation Challenge
+# Ransomware Simulation Challenge of the oil pumb
 
-![Reboot Institute Center Logo](./static/Asset 24x.png)  
-*Created by the Reboot Institute Center*
-by malak , yaman , vedant
+![alt text](oil_pumb.png)
 
 ---
 
@@ -75,5 +73,8 @@ It helps you learn cybersecurity skills step-by-step in a safe environment.
 The faster you solve challenges, the more XP you get!
 
 ---
+
+*Created in Reboot Institute Center*
+by malak , yaman , vedant
 
 *Good luck and enjoy learning!*
