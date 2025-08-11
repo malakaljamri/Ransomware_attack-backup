@@ -1,3 +1,4 @@
+solution by the curl
 ex1
 
 curl -v -X POST http://localhost:5001/malwareinfo \
@@ -53,3 +54,6 @@ curl -X POST http://localhost:5001/shutdown \
 -H "username: malak" \
 -d "password=67890FGHIJK420DJCNCI69ENDK"
 
+
+
+curl -X POST -d "password=YOUR_PASSWORD" http://your-domain.com/shutdown

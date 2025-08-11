@@ -62,15 +62,18 @@
 							.slice(3, 7)
 							.filter((value) => {return value==1 }).length;
 						
-						const taskCompletion = `${challengesCompleted}/4`;
+						const taskCompletion = `${challengesCompleted}/6`;
 						const lastChallengeIndex = Object.values(user)
 							.slice(3, 7)
 							.lastIndexOf(1);
 						const lastChallengeNames = [
 							"Not started",
 							"Malware Info",
+							"Picture",
+							"wallet",
+							"credentials",
+							"IP",
 							"SQL injection 1",
-							"SQL injection 2",
 							"FINISHED",
 						];
 						const lastChallenge =

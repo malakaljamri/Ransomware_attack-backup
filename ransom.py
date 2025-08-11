@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template ,send_file , make_response  , g , jsonify, redirect, Response, send_from_directory, session
+from flask import Flask, request, render_template ,send_file , make_response  , g , jsonify, redirect, Response, send_from_directory, session, url_for, jsonify
 # from pymodbus.client import ModbusTcpClient
 # from pymodbus import mei_message
 import threading
@@ -44,14 +44,14 @@ scada_value = 0 #modbus.read_reg()[0]
 
 def calculate_xp_decrease(current_timer, initial_xp):
     # Calculate the percentage of time that has elapsed
-    time_elapsed_percentage = ((30 - current_timer) / 30) * 100
+    time_elapsed_percentage = ((60 - current_timer) / 60) * 100
     
     # Decrease the XP by the same percentage
     decreased_xp = initial_xp - (initial_xp * time_elapsed_percentage / 100)
     
     return decreased_xp
 
-timer = 30 * 60  #1800 second which is 30 minute
+timer = 60 * 60  #1800 second which is 30 minute
 speed = 1  
 shutdown_password = "supersecretshutdownpassword"  # Set your shutdown password here
 ex1 = 1000
@@ -131,6 +131,10 @@ def malwareinfo():
     username = session['username']
     password = request.form.get('password')
 
+    # Check if they just pasted the Base64 string
+    if password.strip() == "c3VwZXJzZWNyZXRzaHV0ZG93bnBhc3N3b3JkCg==":
+        return "You can’t just paste me in — you have to decode me :)", 401
+
     if password == shutdown_password:
         with get_db() as users:
             cursor = users.cursor()
@@ -154,7 +158,6 @@ def malwareinfo():
                 response = make_response(send_file(image_path, mimetype='image/jpg'))
                 response.headers["Content-Disposition"] = "attachment; filename=hi.jpg"
                 return response
-
             else:
                 return "User not found in database.", 401
     else:
@@ -352,8 +355,10 @@ def check_wallet():
 @app.route("/youcantsolveme", methods=["GET", "POST"])
 def youcantsolveme():
     correct_line = "login from 10.0.0.9"
+    correct_sql = "SELECT * FROM information_schema.tables;"
     message = None
     error = None
+    step = request.form.get('step', '1')
 
     # Must be logged in
     if 'username' not in session:
@@ -361,14 +366,14 @@ def youcantsolveme():
 
     username = session['username']
 
-    # First, mark credentials if user is admin
+    # Mark credentials if admin
     admin_status = request.cookies.get('admin')
     if admin_status == '1':
         with get_db() as users:
             cursor = users.cursor()
             cursor.execute("SELECT * FROM users WHERE name = ?", (username,))
             user = cursor.fetchone()
-            if user and user[6] == 0:  # credentials column index
+            if user and user[6] == 0:
                 new_xp = user[2] + 1000
                 cursor.execute(
                     "UPDATE users SET xp = ?, credentials = 1 WHERE name = ?",
@@ -376,24 +381,23 @@ def youcantsolveme():
                 )
                 users.commit()
 
-    # Handle POST for IP challenge
     if request.method == "POST":
-        user_input = request.form["line"].strip()
+        if step == '1':
+            user_input = request.form.get("line", "").strip()
+            if user_input == correct_line:
+                with get_db() as users:
+                    cursor = users.cursor()
+                    cursor.execute("SELECT * FROM users WHERE name = ?", (username,))
+                    user = cursor.fetchone()
+                    if user and user[7] == 0:
+                        new_xp = user[2] + 1000
+                        cursor.execute(
+                            "UPDATE users SET xp = ?, IP = 1 WHERE name = ?",
+                            (new_xp, username)
+                        )
+                        users.commit()
 
-        if user_input == correct_line:
-            with get_db() as users:
-                cursor = users.cursor()
-                cursor.execute("SELECT * FROM users WHERE name = ?", (username,))
-                user = cursor.fetchone()
-                if user and user[7] == 0:  # IP column index
-                    new_xp = user[2] + 1000
-                    cursor.execute(
-                        "UPDATE users SET xp = ?, IP = 1 WHERE name = ?",
-                        (new_xp, username)
-                    )
-                    users.commit()
-
-            message = '''=== WELCOME TO THE CHALLENGE 4 ===
+                message = '''=== WELCOME TO THE CHALLENGE 6! ===
 
 I am a magic sentence you send to the guard:
 "If the guard isn’t careful, they’ll give you the list of all rooms!"
@@ -402,10 +406,26 @@ Hint: Think DB
 Use me wisely 😉
 
 === END OF MESSAGE ==='''
-        else:
-            error = "Incorrect input. Try again carefully."
+                step = '2'  # move to step 2
+            else:
+                error = "Incorrect input. Try again carefully."
+        elif step == '2':
+            sql_input = request.form.get("sql_query", "").strip()
+            if sql_input.upper() == correct_sql.upper():
+                # You can add logic here if you want to reward XP or redirect
+                return redirect(url_for('dbui'))
 
-    return render_template("youcantsolveme.html", message=message, error=error)
+            else:
+                error = "Incorrect SQL query. Try again."
+
+    return render_template(
+        "youcantsolveme.html",
+        message=message,
+        error=error,
+        step=step,
+        line_input=request.form.get("line", "") if step == '1' else "",
+        sql_input=request.form.get("sql_query", "") if step == '2' else ""
+    )
 
 def get_db_connection():
     conn = sqlite3.connect('DataBase.db')
@@ -414,9 +434,44 @@ def get_db_connection():
 
 @app.route('/dbui')
 def dbui():
-    # For demo, list all three tables; in your app you can control visibility per user/session
-    tables = ['credit_cards', 'Decryption_Keys', 'Hitmen_for_hire']
-    return render_template('dbui.html', tables=tables)
+    if 'username' not in session:
+        return redirect(url_for('register'))
+
+    username = session['username']
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT sqlinjection1 FROM users WHERE name = ?", (username,))
+    row = cursor.fetchone()
+    if row and row['sqlinjection1'] == 0:
+        cursor.execute("UPDATE users SET sqlinjection1 = 1 WHERE name = ?", (username,))
+        conn.commit()
+
+    allowed_tables = ['credit_cards', 'Decryption_Keys', 'Hitmen_for_hire']
+    result = {}
+
+    for table in allowed_tables:
+        cursor.execute(f"SELECT * FROM {table}")
+        rows = cursor.fetchall()
+        result[table] = [dict(row) for row in rows]
+
+    conn.close()
+
+    # Your HTML message as a string (triple quotes for multiline)
+    html_message = """
+    <p><strong>Congratulations! 🎉 You have reached the final challenge.</strong></p>
+    <p>To submit the password and complete the challenge, use the following <code>curl</code> command:</p>
+    <pre>
+    learn about the curl and flags and send the password and username through it 
+    you will use 3 flag to solve it + the POST req
+    </pre>
+    <p>Good luck and well done on making it this far!</p>
+    """
+
+    result['message'] = html_message
+
+    return jsonify(result)
 
 @app.route('/dbui/<table_name>')
 def view_table(table_name):
@@ -430,7 +485,10 @@ def view_table(table_name):
     rows = cursor.fetchall()
     conn.close()
 
-    return render_template('table_view.html', table_name=table_name, rows=rows)
+    # Convert rows to list of dicts
+    data = [dict(row) for row in rows]
+
+    return jsonify({table_name: data})
 
 @app.route('/scoreboard', methods=['GET'])
 def scoreboard():
@@ -451,39 +509,44 @@ def scoreboard():
 
 
 
-@app.route('/shutdown', methods=['post'])
+@app.route('/shutdown', methods=['POST'])
 def shutdown():
     global scada_value, timer
     password = request.form.get('password')
     username = request.headers.get('username')
-    final = '67890FGHIJK420DJCNCI69ENDK'
-    if password == final and bool(username)== True:
+    final = 'supersecretkey'
+    ex4 = 1000  # Define the XP reward for this challenge
+
+    if password == final and bool(username):
         with get_db() as users:
             cursor = users.cursor()
             
-            # First, check if the user exists by selecting them
+            # Check if user exists
             cursor.execute("SELECT * FROM users WHERE name = ?", (username,))
             user = cursor.fetchone()
             print(user)
             
             if user:
-                if user[6] == 1:  
+                # Check shutdown status at index 9
+                if user[9] == 1:
                     print(f"User '{username}' has already completed this challenge. No XP added.")
-                    scada_value=1
+                    scada_value = 1
                     # modbus.write_reg(scada_value)
                     timer = 0  
                     return "Challenge already completed. No XP added.", 403
-                # User exists, so update their XP and challenge status
-                new_xp = user[2] + int(ex4)  # Assuming 'xp' is the column name for XP in your table
+
+                # Update XP and set shutdown to 1
+                new_xp = user[2] + ex4
                 cursor.execute("UPDATE users SET xp = ?, shutdown = 1 WHERE name = ?", (new_xp, username))
                 print(f"User '{username}' already exists. XP updated.")
                 users.commit()
-                scada_value=1
+
+                scada_value = 1
                 # modbus.write_reg(scada_value)
                 timer = 0  
-                return "succesful ShutDown, congratulations!!" , 202
+                return "Successful Shutdown, congratulations!!", 202
     else:
-        return "Wrong Password" , 401
+        return "Wrong Password", 401
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5001, debug=True)

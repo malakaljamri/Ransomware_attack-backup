@@ -43,9 +43,9 @@ def setup_database(db_path='DataBase.db'):
     cursor.executemany('''
     INSERT INTO Decryption_Keys (password) VALUES (?)
 ''', [
-    ('password12345',),
-    ('letmein67890',),
-    ('supersecretkey',),
+    ('pas67890FGHIJK420Dyl712345',),
+    ('letmein678GHIJK420DJCNCI69ENDK',),
+    ('67890FGHIJK420DJCNCI69ENDK',),
 ])
 
     # Insert sample data into Hitmen_for_hire

@@ -1,64 +1,118 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <title>Challenge 3</title>
 </head>
-<body style="font-family: Arial, sans-serif; padding: 2rem; background-color: #f4f4f4;">
+<body style="font-family: Arial, sans-serif; padding: 2rem; background-color: #f4f4f4; max-width: 480px; margin: auto;">
 
-  <h2 style="color: #333; margin-bottom: 1rem;">
+  <h2 style="color: #333; margin-bottom: 1rem; text-align: center;">
     Challenge 3: you can't solve it :)
   </h2>
 
-  <a href="/static/logs.txt" download style="color: #007bff; text-decoration: none; font-weight: 500;">
+  <a href="/static/logs.txt" download style="color: #007bff; text-decoration: none; font-weight: 500; display: block; margin-bottom: 1rem; text-align: center;">
     Download logs.txt
   </a>
 
-  <form method="POST" action="/youcantsolveme" style="max-width: 400px; margin-top: 1rem;">
-    <label for="line" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #555;">
-    </label>
-    <input
-      type="text"
-      name="line"
-      id="line"
-      required
-      style="
-        width: 100%;
-        padding: 0.5rem;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        font-size: 1rem;
-      "
-    >
-    <button
-      type="submit"
-      style="
-        margin-top: 1rem;
-        padding: 0.6rem 1.2rem;
-        background-color: #007bff;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        font-size: 1rem;
-        cursor: pointer;
-        transition: background-color 0.3s ease;
-      "
-      onmouseover="this.style.backgroundColor='#0056b3'"
-      onmouseout="this.style.backgroundColor='#007bff'"
-    >
-      Submit
-    </button>
-  </form>
-
-  {% if error %}
-    <p style="color: red; margin-top: 1rem;">{{ error }}</p>
-  {% endif %}
-
-  {% if message %}
-    <pre style="margin-top: 2rem; padding: 1rem; background: #fff; border: 1px dashed #333;">
+  {% if step == "1" or not step %}
+    {% if error %}
+      <p style="color: red; margin-bottom: 1rem; text-align: center;">{{ error }}</p>
+    {% endif %}
+    <form method="POST" action="/youcantsolveme" style="max-width: 400px; margin: 0 auto;">
+      <input type="hidden" name="step" value="1" />
+      <label for="line" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #555;">
+        Enter the password:
+      </label>
+      <input
+        type="text"
+        name="line"
+        id="line"
+        required
+        style="
+          width: 100%;
+          padding: 0.5rem;
+          border: 1px solid #ccc;
+          border-radius: 4px;
+          font-size: 1rem;
+        "
+        value="{{ line_input|default('') }}"
+      >
+      <button
+        type="submit"
+        style="
+          margin-top: 1rem;
+          padding: 0.6rem 1.2rem;
+          background-color: #007bff;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          font-size: 1rem;
+          cursor: pointer;
+          transition: background-color 0.3s ease;
+          width: 100%;
+        "
+        onmouseover="this.style.backgroundColor='#0056b3'"
+        onmouseout="this.style.backgroundColor='#007bff'"
+      >
+        Submit
+      </button>
+    </form>
+  {% elif step == "2" %}
+    {% if message %}
+      <pre style="margin-top: 1rem; padding: 1rem; background: #fff; border: 1px dashed #333; white-space: pre-wrap; font-size: 0.95rem;">
 {{ message }}
-    </pre>
+      </pre>
+    {% endif %}
+    {% if error %}
+      <p style="color: red; margin-bottom: 1rem; text-align: center;">{{ error }}</p>
+    {% endif %}
+    <form method="POST" action="/youcantsolveme" style="max-width: 400px; margin: 1rem auto 0;">
+      <input type="hidden" name="step" value="2" />
+      <label for="sql_query" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #555;">
+        The Query:
+      </label>
+      <input
+        type="text"
+        name="sql_query"
+        id="sql_query"
+        required
+        style="
+          width: 100%;
+          padding: 0.5rem;
+          border: 1px solid #ccc;
+          /* Want to learn how to ask the guard clever questions?  
+Try searching on these sites to discover more:
+
+• https://owasp.org/www-community/attacks/SQL_Injection
+• https://portswigger.net/web-security/sql-injection  
+
+Good luck, young detective!  */
+          border-radius: 4px;
+          font-size: 1rem;
+          font-family: monospace;
+        "
+        value="{{ sql_input|default('SELECT * FROM information_schema.tables;') }}"
+      >
+      <button
+        type="submit"
+        style="
+          margin-top: 1rem;
+          padding: 0.6rem 1.2rem;
+          background-color: #007bff;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          font-size: 1rem;
+          cursor: pointer;
+          transition: background-color 0.3s ease;
+          width: 100%;
+        "
+        onmouseover="this.style.backgroundColor='#0056b3'"
+        onmouseout="this.style.backgroundColor='#007bff'"
+      >
+        Submit Query
+      </button>
+    </form>
   {% endif %}
 
 </body>
