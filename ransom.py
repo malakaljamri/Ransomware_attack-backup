@@ -173,8 +173,8 @@ def submit_register():
    with get_db() as users:
         cursor = users.cursor()
         cursor.execute(
-            "INSERT OR IGNORE INTO users (name, email, xp, malwareinfo, Picture, IP, sqlinjection1, sqlinjection2, shutdown, final) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (username, email, 0, 0, 0, 0, 0, 0, 0, 0))
+            "INSERT OR IGNORE INTO users (name, email, xp, malwareinfo, Picture, wallet, credentials, IP, sqlinjection1, shutdown, final) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+             (username, email, 0, 0, 0, 0, 0, 0, 0, 0, 0))
         users.commit()
         session['username'] = username  # ✅ Set session here
         if cursor.rowcount == 0:
@@ -187,9 +187,6 @@ def submit_register():
 def logout():
     session.pop('username', None)
     return redirect('/register')   
-
-
-
 
 @app.route('/decrypt')
 def decrypt():
@@ -285,16 +282,33 @@ def malak():
     if request.method == 'GET':
         return render_template('malak.html')
     
-    # POST
     submitted_password = request.form.get('password')
     correct_password = 'supersecretPAssword123'  # The password hidden in the image
 
     if submitted_password == correct_password:
-        # Show two lists and a form for the next answer
+        if 'username' not in session:
+            return redirect(url_for('register'))
+
+        username = session['username']
+
+        with get_db() as users:
+            cursor = users.cursor()
+            cursor.execute("SELECT * FROM users WHERE name = ?", (username,))
+            user = cursor.fetchone()
+
+            if user:
+                if user[4] == 1:  # Picture column
+                    print(f"User '{username}' already completed Picture challenge.")
+                    return render_template('wallet.html')
+
+                new_xp = user[2] + 1500  # pick whatever XP you want
+                cursor.execute("UPDATE users SET xp = ?, Picture = 1 WHERE name = ?", (new_xp, username))
+                users.commit()
+
         return render_template('wallet.html')
     else:
         return render_template('malak.html', error="Wrong password, try again.")
-    
+
 @app.route('/hello')
 def hello():
     admin_status = request.cookies.get('admin')
@@ -306,34 +320,79 @@ def hello():
 @app.route('/check-wallet', methods=['POST'])
 def check_wallet():
     wallet_password = request.form.get('walletpassword')
-    if wallet_password == 'Sun Tzu':
-        # Correct password — set cookie admin=0
-        response = make_response(redirect('/hello'))
-        response.set_cookie('admin', '0')  # initially set as not admin
-        return response
-    else:
-        # Wrong password — reload form with error
-        return render_template('wallet.html', error="Wrong wallet password, try again.")
-    
-@app.route('/youcantsolveme')
-def secret_page():
-    admin_status = request.cookies.get('admin')
-    if admin_status == '1':
-        return render_template('youcantsolveme.html')
-    else:
-        return "<h2>Welcome, Admin!</h2><p>You now have full access.</p>"
-        
-   
 
+    if wallet_password == 'Sun Tzu':
+        # Must be logged in to update XP
+        if 'username' not in session:
+            return redirect(url_for('register'))
+
+        username = session['username']
+
+        with get_db() as users:
+            cursor = users.cursor()
+            cursor.execute("SELECT * FROM users WHERE name = ?", (username,))
+            user = cursor.fetchone()
+
+            if user:
+                if user[5] == 1:  # wallet column index (after Picture)
+                    print(f"User '{username}' already completed wallet challenge.")
+                else:
+                    new_xp = user[2] + 1000  # award XP for wallet
+                    cursor.execute("UPDATE users SET xp = ?, wallet = 1 WHERE name = ?", (new_xp, username))
+                    users.commit()
+
+        # Set cookie and redirect
+        response = make_response(redirect('/hello'))
+        response.set_cookie('admin', '0')
+        return response
+
+    else:
+        return render_template('wallet.html', error="Wrong wallet password, try again.")
+        
 @app.route("/youcantsolveme", methods=["GET", "POST"])
 def youcantsolveme():
     correct_line = "login from 10.0.0.9"
     message = None
     error = None
 
+    # Must be logged in
+    if 'username' not in session:
+        return redirect(url_for('register'))
+
+    username = session['username']
+
+    # First, mark credentials if user is admin
+    admin_status = request.cookies.get('admin')
+    if admin_status == '1':
+        with get_db() as users:
+            cursor = users.cursor()
+            cursor.execute("SELECT * FROM users WHERE name = ?", (username,))
+            user = cursor.fetchone()
+            if user and user[6] == 0:  # credentials column index
+                new_xp = user[2] + 1000
+                cursor.execute(
+                    "UPDATE users SET xp = ?, credentials = 1 WHERE name = ?",
+                    (new_xp, username)
+                )
+                users.commit()
+
+    # Handle POST for IP challenge
     if request.method == "POST":
         user_input = request.form["line"].strip()
+
         if user_input == correct_line:
+            with get_db() as users:
+                cursor = users.cursor()
+                cursor.execute("SELECT * FROM users WHERE name = ?", (username,))
+                user = cursor.fetchone()
+                if user and user[7] == 0:  # IP column index
+                    new_xp = user[2] + 1000
+                    cursor.execute(
+                        "UPDATE users SET xp = ?, IP = 1 WHERE name = ?",
+                        (new_xp, username)
+                    )
+                    users.commit()
+
             message = '''=== WELCOME TO THE CHALLENGE 4 ===
 
 I am a magic sentence you send to the guard:
@@ -347,7 +406,6 @@ Use me wisely 😉
             error = "Incorrect input. Try again carefully."
 
     return render_template("youcantsolveme.html", message=message, error=error)
-
 
 def get_db_connection():
     conn = sqlite3.connect('DataBase.db')
