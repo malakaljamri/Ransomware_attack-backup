@@ -38,7 +38,7 @@ curl -X POST http://localhost:5001/submit -d "Username=malak&Password=select * f
 }
 
 ex3
-curl -X POST http://localhost:5001/submit -d "Username=malak&Password=SELECT * FROM Decryption_Keys"
+curl -X POST http://10.1.204.53:5001/submit -d "Username=malak&Password=SELECT * FROM Decryption_Keys"
 
 they should try all of the table to found the actual one 
 
@@ -50,10 +50,14 @@ ex4 try the 3 password that you have
 
 this is the right one
 
+curl -X POST http://10.1.204.53:5001:5001/shutdown \
+-H "username: malak" \
+-d "password=supersecretkey"
+
+
+
 curl -X POST http://localhost:5001/shutdown \
 -H "username: malak" \
--d "password=67890FGHIJK420DJCNCI69ENDK"
-
-
+-d "password=supersecretkey"
 
 curl -X POST -d "password=YOUR_PASSWORD" http://your-domain.com/shutdown

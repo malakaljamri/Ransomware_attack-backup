@@ -1,553 +1,290 @@
-from flask import Flask, request, render_template ,send_file , make_response  , g , jsonify, redirect, Response, send_from_directory, session, url_for, jsonify
-# from pymodbus.client import ModbusTcpClient
-# from pymodbus import mei_message
+from flask import Flask, request, jsonify, render_template, redirect, url_for, send_from_directory, Response
+import os
 import threading
 import time
-import sqlite3
-import json
-import re
-import base64
+
+# Optional serial
+try:
+    import serial  # pyserial
+except Exception:
+    serial = None
+
+import importlib.util
+from jinja2 import Environment, FileSystemLoader
 
 app = Flask(__name__)
 
-# 🔐 Add a secret key for session handling
-app.secret_key = 'a7c2c2c01871e6842c63e7ed70b7b34972157b482376f87994e392fb3c2ab8b2'  # use a secure random key!
-
-
-IP="192.168.1.177"
-DATABASE = 'DataBase.db'
-
-
-# class MB():
-#   def __init__(self, ip, port=502):
-#     self.ip=ip
-#     self.port=port
-#     self.connect()
-#   def connect(self):
-#       self.client=ModbusTcpClient(self.ip, port=self.port,timeout=10)
-#   def read_reg(self):
-#     val=self.client.read_holding_registers(6, 2)
-#     return val.registers
-#   def write_reg(self, value):
-#     self.client.write_register(6, scada_value)
-#     return 0
-#   def deviceinfo(self):
-#     rq = mei_message.ReadDeviceInformationRequest()
-#     val=self.client.execute(rq)
-#     return(val.information)
-#   def close(self):
-#     self.client.close()
-
-
-# modbus = MB(IP)
-scada_value = 0 #modbus.read_reg()[0]
-
-def calculate_xp_decrease(current_timer, initial_xp):
-    # Calculate the percentage of time that has elapsed
-    time_elapsed_percentage = ((60 - current_timer) / 60) * 100
-    
-    # Decrease the XP by the same percentage
-    decreased_xp = initial_xp - (initial_xp * time_elapsed_percentage / 100)
-    
-    return decreased_xp
-
-timer = 60 * 60  #1800 second which is 30 minute
-speed = 1  
-shutdown_password = "supersecretshutdownpassword"  # Set your shutdown password here
-ex1 = 1000
-ex2 = 2000
-ex3 = 2000
-ex4 = 3000
-def update_speed():
-    global timer, speed , ex1 ,ex2 , ex3 , ex4
-    while timer > 0:
-        if timer >= 1200 :
-          ex1 =  calculate_xp_decrease(timer/60,1000) # first challange
-        if timer <= 1320 and timer >= 900:
-           ex2 =  calculate_xp_decrease(timer/60,2000) # second challange
-        if timer <= 1000 and timer >= 700:
-           ex3 =  calculate_xp_decrease(timer/60,2000) # third challange
-        if timer < 500 and timer >= 10:
-           ex4 =  calculate_xp_decrease(timer/60,3000) # third challange
-        time.sleep(1)  # Wait for 2 minutes
-        timer -= 1  # Decrease timer by 2 minutes
-        if (timer % 120 == 0):
-          global scada_value
-          scada_value=scada_value+100
-        #   modbus.write_reg(scada_value)
-          speed += 1  # Increase speed
-           
-
-       
-# Start the speed update thread
-threading.Thread(target=update_speed, daemon=True).start()
-
-
-def get_db_connection(): #for new, direct use
-    conn = sqlite3.connect('DataBase.db')
-    conn.row_factory = sqlite3.Row  # This allows column access by name: row['column_name']
-    return conn
-
-def get_db(): #reused DB connection
-    db = getattr(g, '_database', None)
-    if db is None:
-        db = g._database = sqlite3.connect(DATABASE)
-    return db
-
-@app.teardown_appcontext
-def close_connection(exception):
-    db = getattr(g, '_database', None)
-    if db is not None:
-        db.close()
-
-@app.route('/')
-def index():
-    if 'username' not in session:
-        return redirect('/register')
-    global timer, speed
-    return render_template('ransom.html', timer=timer, speed=speed)
-
-
-@app.route('/password.txt')
-def serve_password():
-    return send_from_directory('static', 'password.txt')
-
-
-
-@app.route('/get_timer')
-def get_timer():
-    global timer
-    return {"timer": timer}
-
-@app.route('/malwareinfo', methods=['GET', 'POST'])
-def malwareinfo():
-    if request.method == 'GET':
-        return render_template('malwareinfo.html')  # make sure this file exists
-
-    # POST request starts here
-    if 'username' not in session:
-        return redirect(url_for('register'))  # redirect if not logged in
-
-    username = session['username']
-    password = request.form.get('password')
-
-    # Check if they just pasted the Base64 string
-    if password.strip() == "c3VwZXJzZWNyZXRzaHV0ZG93bnBhc3N3b3JkCg==":
-        return "You can’t just paste me in — you have to decode me :)", 401
-
-    if password == shutdown_password:
-        with get_db() as users:
-            cursor = users.cursor()
-            cursor.execute("SELECT * FROM users WHERE name = ?", (username,))
-            user = cursor.fetchone()
-
-            if user:
-                if user[3] == 1:
-                    print(f"User '{username}' has already completed this challenge. No XP added.")
-                    image_path = 'static/hi.jpg'
-                    response = make_response(send_file(image_path, mimetype='image/jpg'))
-                    response.headers["Content-Disposition"] = "attachment; filename=hi.jpg"
-                    return response
-
-                # Update XP and mark challenge as complete
-                new_xp = user[2] + int(ex1)
-                cursor.execute("UPDATE users SET xp = ?, malwareinfo = 1 WHERE name = ?", (new_xp, username))
-                users.commit()
-
-                image_path = 'static/hi.jpg'
-                response = make_response(send_file(image_path, mimetype='image/jpg'))
-                response.headers["Content-Disposition"] = "attachment; filename=hi.jpg"
-                return response
-            else:
-                return "User not found in database.", 401
-    else:
-        return "Invalid password. Please try again.", 401
-
-    
-
-@app.route('/register')
-def register():
-   return render_template('register.html')
-
-@app.route('/submit_register',  methods=['POST'])
-def submit_register():
-   username = request.form.get('Username')
-   email = request.form.get('email')
-   with get_db() as users:
-        cursor = users.cursor()
-        cursor.execute(
-            "INSERT OR IGNORE INTO users (name, email, xp, malwareinfo, Picture, wallet, credentials, IP, sqlinjection1, shutdown, final) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-             (username, email, 0, 0, 0, 0, 0, 0, 0, 0, 0))
-        users.commit()
-        session['username'] = username  # ✅ Set session here
-        if cursor.rowcount == 0:
-            print(f"User '{username}' already exists in the database.")
-        else:
-            print(f"User '{username}' added to the database.")
-        return redirect('/')
-   
-@app.route('/logout')
-def logout():
-    session.pop('username', None)
-    return redirect('/register')   
-
-@app.route('/decrypt')
-def decrypt():
-  path_to_pdf = 'static/data.txt'
-  return send_file(path_to_pdf, as_attachment=True)
-
-@app.route('/cc-stealer')
-def payfordecrypt():
-   return render_template('cc-stealer.html')
-
-flag = False
-@app.route('/pay',  methods=['POST'])
-def pay():
-  global flag ,timer
-  cardNumber = request.form.get('cardNumber')
-
-  if cardNumber == "4005321443334322" and flag == False:
-      flag = True
-      timer = timer - 60
-      return {"HAHAHAHAHA": ["- 1 minute for being gullible"]}
-  else:
-      return redirect("/cc-stealer")
-
-    
-def process_sql_query(input_query ,username):
-    # Regex pattern for matching a query that resembles asking for table names
-    tables_query_pattern = re.compile(r'select\s+.+\s+from\s+(information_schema\.tables|all_tables|dba_tables)', re.IGNORECASE)
-    
-    # Regex pattern for matching a query specifically requesting all from the decryption key table
-    decryption_key_pattern = re.compile(r'select\s+\*\s+from\s+decryption_key', re.IGNORECASE)
-
-    with get_db() as users:
-            cursor = users.cursor()
-            
-            # First, check if the user exists by selecting them
-            cursor.execute("SELECT * FROM users WHERE name = ?", (username,))
-            user = cursor.fetchone()
-    
-            if decryption_key_pattern.match(input_query):
-                if user:
-                    if user[5] == 1:
-                        return {"Decryption_Keys": ["12345-ABCDE3@193m!i3en$KjILN","67890FGHIJK420DJCNCI69ENDK","11223-KLMNOeo449fj4fnf4dsds"],
-                                "route": ["/shutdown"]}
-                    
-                
-                    new_xp = user[2] + int(ex2)  
-                    cursor.execute("UPDATE users SET xp = ?, sqlinjection2 = 1 WHERE name = ?", (new_xp, username))
-                    print(f"User '{username}' already exists. XP updated.")
-                    users.commit()
-                    response = {"Decryption_Keys": ["12345-ABCDE3@193m!i3en$KjILN","67890FGHIJK420DJCNCI69ENDK","11223-KLMNOeo449fj4fnf4dsds"],
-                                "route": ["/shutdown"]}
-                else:
-                    response = {"Message": "wrong username"}
-
-    
-    
-            elif tables_query_pattern.match(input_query):
-                if user:
-                    if user[4] == 1:
-                        return {"Available Tables": ["credit_cards", "Decryption_Keys", "Hitmen_for_hire"]}
-                    
-                
-                    new_xp = user[2] + int(ex3)  
-                    cursor.execute("UPDATE users SET xp = ?, sqlinjection1 = 1 WHERE name = ?", (new_xp, username))
-                    print(f"User '{username}' already exists. XP updated.")
-                    users.commit()
-                    response = {"Available Tables": ["credit_cards", "Decryption_Keys", "Hitmen_for_hire"]}
-                else:
-                    response = {"Message": "Missing username"}
-            
-            
-            else:
-                response = {"Message": "Query processed. No results."}
-
-    
-    return response  
-
-
-@app.route('/instalogin', methods=['GET'])
-def instalogin():
-   return render_template('instagram-login.html')
-
-@app.route('/submit', methods=['POST'])
-def submit():
-  username = request.form.get('Username')
-  passwrd = request.form.get('Password')
-  out = process_sql_query(passwrd ,username )
-  print(out)
-  return jsonify(out) 
-
-@app.route('/malak', methods=['GET', 'POST'])
-def malak():
-    if request.method == 'GET':
-        return render_template('malak.html')
-    
-    submitted_password = request.form.get('password')
-    correct_password = 'supersecretPAssword123'  # The password hidden in the image
-
-    if submitted_password == correct_password:
-        if 'username' not in session:
-            return redirect(url_for('register'))
-
-        username = session['username']
-
-        with get_db() as users:
-            cursor = users.cursor()
-            cursor.execute("SELECT * FROM users WHERE name = ?", (username,))
-            user = cursor.fetchone()
-
-            if user:
-                if user[4] == 1:  # Picture column
-                    print(f"User '{username}' already completed Picture challenge.")
-                    return render_template('wallet.html')
-
-                new_xp = user[2] + 1500  # pick whatever XP you want
-                cursor.execute("UPDATE users SET xp = ?, Picture = 1 WHERE name = ?", (new_xp, username))
-                users.commit()
-
-        return render_template('wallet.html')
-    else:
-        return render_template('malak.html', error="Wrong password, try again.")
-
-@app.route('/hello')
-def hello():
-    admin_status = request.cookies.get('admin')
-    if admin_status == '1':
-        return redirect('/youcantsolveme')
-    return render_template('hello.html')
-   
-    
-@app.route('/check-wallet', methods=['POST'])
-def check_wallet():
-    wallet_password = request.form.get('walletpassword')
-
-    if wallet_password == 'Sun Tzu':
-        # Must be logged in to update XP
-        if 'username' not in session:
-            return redirect(url_for('register'))
-
-        username = session['username']
-
-        with get_db() as users:
-            cursor = users.cursor()
-            cursor.execute("SELECT * FROM users WHERE name = ?", (username,))
-            user = cursor.fetchone()
-
-            if user:
-                if user[5] == 1:  # wallet column index (after Picture)
-                    print(f"User '{username}' already completed wallet challenge.")
-                else:
-                    new_xp = user[2] + 1000  # award XP for wallet
-                    cursor.execute("UPDATE users SET xp = ?, wallet = 1 WHERE name = ?", (new_xp, username))
-                    users.commit()
-
-        # Set cookie and redirect
-        response = make_response(redirect('/hello'))
-        response.set_cookie('admin', '0')
-        return response
-
-    else:
-        return render_template('wallet.html', error="Wrong wallet password, try again.")
-        
-@app.route("/youcantsolveme", methods=["GET", "POST"])
-def youcantsolveme():
-    correct_line = "login from 10.0.0.9"
-    correct_sql = "SELECT * FROM information_schema.tables;"
-    message = None
-    error = None
-    step = request.form.get('step', '1')
-
-    # Must be logged in
-    if 'username' not in session:
-        return redirect(url_for('register'))
-
-    username = session['username']
-
-    # Mark credentials if admin
-    admin_status = request.cookies.get('admin')
-    if admin_status == '1':
-        with get_db() as users:
-            cursor = users.cursor()
-            cursor.execute("SELECT * FROM users WHERE name = ?", (username,))
-            user = cursor.fetchone()
-            if user and user[6] == 0:
-                new_xp = user[2] + 1000
-                cursor.execute(
-                    "UPDATE users SET xp = ?, credentials = 1 WHERE name = ?",
-                    (new_xp, username)
-                )
-                users.commit()
-
-    if request.method == "POST":
-        if step == '1':
-            user_input = request.form.get("line", "").strip()
-            if user_input == correct_line:
-                with get_db() as users:
-                    cursor = users.cursor()
-                    cursor.execute("SELECT * FROM users WHERE name = ?", (username,))
-                    user = cursor.fetchone()
-                    if user and user[7] == 0:
-                        new_xp = user[2] + 1000
-                        cursor.execute(
-                            "UPDATE users SET xp = ?, IP = 1 WHERE name = ?",
-                            (new_xp, username)
-                        )
-                        users.commit()
-
-                message = '''=== WELCOME TO THE CHALLENGE 6! ===
-
-I am a magic sentence you send to the guard:
-"If the guard isn’t careful, they’ll give you the list of all rooms!"
-
-Hint: Think DB 
-Use me wisely 😉
-
-=== END OF MESSAGE ==='''
-                step = '2'  # move to step 2
-            else:
-                error = "Incorrect input. Try again carefully."
-        elif step == '2':
-            sql_input = request.form.get("sql_query", "").strip()
-            if sql_input.upper() == correct_sql.upper():
-                # You can add logic here if you want to reward XP or redirect
-                return redirect(url_for('dbui'))
-
-            else:
-                error = "Incorrect SQL query. Try again."
-
-    return render_template(
-        "youcantsolveme.html",
-        message=message,
-        error=error,
-        step=step,
-        line_input=request.form.get("line", "") if step == '1' else "",
-        sql_input=request.form.get("sql_query", "") if step == '2' else ""
+# Config: directories
+BASE = os.path.abspath(os.path.dirname(__file__))
+
+# Veeam dashboard paths
+VEEAM_ROOT = os.path.join(BASE, "Veeam-Backup-Dash")
+VEEAM_TEMPLATES = os.path.join(VEEAM_ROOT, "templates")
+VEEAM_STATIC = os.path.join(VEEAM_ROOT, "static")
+
+# Prefer the Veeam dashboard's ransomware_simulation if present, else fallback to top-level
+SIM_ROOT_VEEAM = os.path.join(VEEAM_ROOT, "ransomware_simulation")
+SIM_ROOT_TOP = os.path.join(BASE, "ransomware_simulation")
+SIM_ROOT = SIM_ROOT_VEEAM if os.path.isdir(SIM_ROOT_VEEAM) else SIM_ROOT_TOP
+
+LIVE_DIR = os.path.join(SIM_ROOT, "live_folder")
+BACKUP_DIR = os.path.join(SIM_ROOT, "backup_repository")
+LOG_DIR = os.path.join(SIM_ROOT, "logs")
+LOG_PATH = os.path.join(LOG_DIR, "simulation.log")
+
+# Dynamic import helpers to load modules from SIM_ROOT
+def _load_function(module_path: str, func_name: str):
+    spec = importlib.util.spec_from_file_location(
+        f"_dyn_{os.path.basename(module_path)}", module_path
     )
+    if spec and spec.loader:
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)  # type: ignore[attr-defined]
+        return getattr(mod, func_name)
+    raise ImportError(f"Could not load {func_name} from {module_path}")
 
-def get_db_connection():
-    conn = sqlite3.connect('DataBase.db')
-    conn.row_factory = sqlite3.Row
-    return conn
+_simulate_attack = _load_function(os.path.join(SIM_ROOT, "simulate_attack.py"), "simulate_attack")
+_restore_from_backup = _load_function(os.path.join(SIM_ROOT, "restore_script.py"), "restore_from_backup")
 
-@app.route('/dbui')
-def dbui():
-    if 'username' not in session:
-        return redirect(url_for('register'))
+# Arduino config from env
+ARDUINO_PORT = os.environ.get("ARDUINO_PORT")
+ARDUINO_BAUD = int(os.environ.get("ARDUINO_BAUD", "9600"))
+ARDUINO_START_CMD = os.environ.get("ARDUINO_START_CMD", "START")
 
-    username = session['username']
+_serial_lock = threading.Lock()
+_serial_obj = None
+_last_arduino_cmd = None
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+# --- Simple countdown timer to support templates/ransom.html ---
+timer_total = int(os.environ.get("RANSOM_TIMER_SECONDS", str(60*60)))  # default 1 hour
+timer = timer_total
+attack_active = False
+_timer_thread_started = False
 
-    cursor.execute("SELECT sqlinjection1 FROM users WHERE name = ?", (username,))
-    row = cursor.fetchone()
-    if row and row['sqlinjection1'] == 0:
-        cursor.execute("UPDATE users SET sqlinjection1 = 1 WHERE name = ?", (username,))
-        conn.commit()
+def _log(msg: str) -> None:
+    os.makedirs(LOG_DIR, exist_ok=True)
+    with open(LOG_PATH, "a", encoding="utf-8") as f:
+        f.write(f"{time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())} | {msg}\n")
 
-    allowed_tables = ['credit_cards', 'Decryption_Keys', 'Hitmen_for_hire']
-    result = {}
+def _detect_sim_status() -> str:
+    try:
+        # Compromised if ransom note or any .ENCRYPTED exists
+        if os.path.exists(os.path.join(LIVE_DIR, "READ_ME_RESTORE.txt")):
+            return "compromised"
+        for root, _, files in os.walk(LIVE_DIR):
+            if any(f.endswith('.ENCRYPTED') for f in files):
+                return "compromised"
+        return "safe"
+    except Exception:
+        return "unknown"
 
-    for table in allowed_tables:
-        cursor.execute(f"SELECT * FROM {table}")
-        rows = cursor.fetchall()
-        result[table] = [dict(row) for row in rows]
+def _get_serial():
+    global _serial_obj
+    if serial is None or not ARDUINO_PORT:
+        return None
+    with _serial_lock:
+        if _serial_obj is not None:
+            return _serial_obj
+        try:
+            _serial_obj = serial.Serial(ARDUINO_PORT, ARDUINO_BAUD, timeout=2)
+            time.sleep(2.0)  # let Arduino reset
+            _log(f"SERIAL connected {ARDUINO_PORT}@{ARDUINO_BAUD}")
+        except Exception as e:
+            _log(f"SERIAL connect error: {e}")
+            _serial_obj = None
+        return _serial_obj
 
-    conn.close()
+def _arduino_send(cmd: str) -> bool:
+    global _last_arduino_cmd
+    ser = _get_serial()
+    if ser is None:
+        _log(f"SERIAL unavailable, skipped cmd '{cmd}'")
+        return False
+    try:
+        ser.write((cmd.strip() + "\n").encode("utf-8"))
+        ser.flush()
+        _last_arduino_cmd = cmd.strip().upper()
+        _log(f"SERIAL sent '{_last_arduino_cmd}'")
+        return True
+    except Exception as e:
+        _log(f"SERIAL write error '{cmd}': {e}")
+        return False
 
-    # Your HTML message as a string (triple quotes for multiline)
-    html_message = """
-    <p><strong>Congratulations! 🎉 You have reached the final challenge.</strong></p>
-    <p>To submit the password and complete the challenge, use the following <code>curl</code> command:</p>
-    <pre>
-    learn about the curl and flags and send the password and username through it 
-    you will use 3 flag to solve it + the POST req
-    </pre>
-    <p>Good luck and well done on making it this far!</p>
-    """
+def _arduino_startup_kick():
+    try:
+        # small delay to allow server to come up and serial to settle
+        time.sleep(1.5)
+        _arduino_send(ARDUINO_START_CMD)
+    except Exception:
+        pass
 
-    result['message'] = html_message
+def _timer_loop():
+    global timer
+    while True:
+        time.sleep(1)
+        if attack_active and timer > 0:
+            timer -= 1
 
-    return jsonify(result)
+@app.route("/", methods=["GET"]) 
+def root():
+    return redirect(url_for("register"))
 
-@app.route('/dbui/<table_name>')
-def view_table(table_name):
-    allowed_tables = ['credit_cards', 'Decryption_Keys', 'Hitmen_for_hire']
-    if table_name not in allowed_tables:
-        return "Table not accessible", 403
+# --- UI Flow: Register -> Malware Info (instead of SCADA) ---
+@app.route("/register", methods=["GET"])
+def register():
+    return render_template("register.html")
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute(f"SELECT * FROM {table_name}")
-    rows = cursor.fetchall()
-    conn.close()
+@app.route("/submit_register", methods=["POST"])
+def submit_register():
+    # In this streamlined demo, we skip DB/session and go directly to the ransomware page
+    return redirect(url_for("ransom"))
 
-    # Convert rows to list of dicts
-    data = [dict(row) for row in rows]
+@app.route("/ransom", methods=["GET", "POST"]) 
+def ransom():
+    # Trigger the simulated attack so admin sees the encrypted state instead of SCADA
+    _simulate_attack(LIVE_DIR, LOG_PATH)
+    # Stop/lock the pump during the attack
+    _arduino_send("STOP")
+    # Start/Reset timer when ransom page is shown
+    global attack_active, timer
+    attack_active = True
+    timer = timer_total
+    return render_template("ransom.html")
 
-    return jsonify({table_name: data})
+@app.route("/status", methods=["GET"]) 
+def status():
+    live_count = 0
+    backup_count = 0
+    if os.path.isdir(LIVE_DIR):
+        for _, _, files in os.walk(LIVE_DIR):
+            live_count += len(files)
+    if os.path.isdir(BACKUP_DIR):
+        for _, _, files in os.walk(BACKUP_DIR):
+            backup_count += len(files)
+    return jsonify({
+        "live_dir": LIVE_DIR,
+        "backup_dir": BACKUP_DIR,
+        "log_path": LOG_PATH,
+        "live_files": live_count,
+        "backup_files": backup_count,
+        "serial_available": serial is not None,
+        "arduino_port": ARDUINO_PORT or "",
+        "arduino_last_cmd": _last_arduino_cmd,
+    })
 
-@app.route('/scoreboard', methods=['GET'])
-def scoreboard():
-  
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute('SELECT * FROM users')
-    users_rows = cur.fetchall()
+# --- Veeam dashboard exposure ---
+@app.route("/veeam", methods=["GET"]) 
+def veeam_index():
+    # Render Veeam dashboard with context (Jinja2 environment pointing to VEEAM_TEMPLATES)
+    env = Environment(loader=FileSystemLoader(VEEAM_TEMPLATES))
+    tpl = env.get_template("index.html")
+    sim_status = {"status": _detect_sim_status()}
+    # Minimal demo metrics/data for template
+    metrics = {"success_rate": 97, "total_jobs": 12, "storage_used_percent": 63}
+    data = {
+        "jobs": [
+            {"Name": "Daily Backup", "LastResult": "Success", "LastRun": "2025-11-26T22:00Z"},
+            {"Name": "Weekly Full", "LastResult": "Success", "LastRun": "2025-11-24T02:00Z"},
+            {"Name": "DB Snapshots", "LastResult": "Warning", "LastRun": "2025-11-26T23:30Z"},
+        ],
+        "sessions": [
+            {"Name": "Daily Backup", "State": "Stopped", "Result": "Success", "CreationTime": "2025-11-26T22:00Z"},
+            {"Name": "Weekly Full", "State": "Stopped", "Result": "Success", "CreationTime": "2025-11-24T02:00Z"},
+            {"Name": "DB Snapshots", "State": "Stopped", "Result": "Warning", "CreationTime": "2025-11-26T23:30Z"},
+        ],
+    }
+    html = tpl.render(sim_status=sim_status, metrics=metrics, data=data)
+    return Response(html, mimetype="text/html")
 
-    # Convert the query result to a list of dictionaries
-    users = [dict(row) for row in users_rows]    
-    json_data = json.dumps(users, indent=4)
-    
-    # Create a response object with the JSON data
-    response = Response(json_data, content_type='application/json')
-    response.headers.add("Access-Control-Allow-Origin", "*")
-    return response
+@app.route('/veeam/static/<path:filename>')
+def veeam_static(filename):
+    # Serve Veeam dashboard static assets
+    return send_from_directory(VEEAM_STATIC, filename)
 
+@app.route("/get_timer", methods=["GET"]) 
+def get_timer():
+    return jsonify({"timer": timer})
 
+# --- Veeam API for dashboard JS ---
+@app.route('/api/ransomware/status', methods=['GET'])
+def api_status():
+    return jsonify({"status": _detect_sim_status()})
 
-@app.route('/shutdown', methods=['POST'])
+@app.route('/api/ransomware/simulate', methods=['POST'])
+def api_simulate():
+    result = _simulate_attack(LIVE_DIR, LOG_PATH)
+    _arduino_send("STOP")
+    status = {"status": _detect_sim_status()}
+    return jsonify({"result": result, "status": status})
+
+@app.route('/api/ransomware/restore', methods=['POST'])
+def api_restore():
+    result = _restore_from_backup(BACKUP_DIR, LIVE_DIR, LOG_PATH)
+    _arduino_send("START")
+    global attack_active, timer
+    attack_active = False
+    timer = 0
+    status = {"status": _detect_sim_status()}
+    return jsonify({"result": result, "status": status})
+
+@app.route('/api/data', methods=['GET'])
+def api_data():
+    # Minimal placeholder for dashboard auto-refresh
+    return jsonify({"ok": True, "ts": time.time()})
+
+@app.route("/simulate", methods=["POST"]) 
+def simulate():
+    summary = _simulate_attack(LIVE_DIR, LOG_PATH)
+    # Optional: stop the pump during attack
+    _arduino_send("STOP")
+    return jsonify({"ok": True, "action": "simulate", "summary": summary})
+
+@app.route("/restore", methods=["POST"]) 
+def restore():
+    summary = _restore_from_backup(BACKUP_DIR, LIVE_DIR, LOG_PATH)
+    # Optional: restart the pump after restore
+    _arduino_send("START")
+    # Stop the countdown on restore
+    global attack_active, timer
+    attack_active = False
+    timer = 0
+    return jsonify({"ok": True, "action": "restore", "summary": summary})
+
+# Challenge-gated shutdown: mirrors previous behavior but now performs a restore
+@app.route('/shutdown', methods=['POST']) 
 def shutdown():
-    global scada_value, timer
     password = request.form.get('password')
     username = request.headers.get('username')
-    final = 'supersecretkey'
-    ex4 = 1000  # Define the XP reward for this challenge
+    final = 'supersecretkey'  # keep compatibility with old challenge
 
     if password == final and bool(username):
-        with get_db() as users:
-            cursor = users.cursor()
-            
-            # Check if user exists
-            cursor.execute("SELECT * FROM users WHERE name = ?", (username,))
-            user = cursor.fetchone()
-            print(user)
-            
-            if user:
-                # Check shutdown status at index 9
-                if user[9] == 1:
-                    print(f"User '{username}' has already completed this challenge. No XP added.")
-                    scada_value = 1
-                    # modbus.write_reg(scada_value)
-                    timer = 0  
-                    return "Challenge already completed. No XP added.", 403
-
-                # Update XP and set shutdown to 1
-                new_xp = user[2] + ex4
-                cursor.execute("UPDATE users SET xp = ?, shutdown = 1 WHERE name = ?", (new_xp, username))
-                print(f"User '{username}' already exists. XP updated.")
-                users.commit()
-
-                scada_value = 1
-                # modbus.write_reg(scada_value)
-                timer = 0  
-                return "Successful Shutdown, congratulations!!", 202
+        # Perform restore from backup as the "shutdown" action
+        summary = _restore_from_backup(BACKUP_DIR, LIVE_DIR, LOG_PATH)
+        # Resume normal operation on Arduino
+        _arduino_send("START")
+        # Stop the countdown
+        global attack_active, timer
+        attack_active = False
+        timer = 0
+        return jsonify({"message": "Successful Shutdown with restore", "summary": summary}), 202
     else:
-        return "Wrong Password", 401
+        return jsonify({"error": "Wrong Password"}), 401
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001, debug=True)
+@app.route("/arduino/start", methods=["POST"]) 
+def arduino_start():
+    sent = _arduino_send("START")
+    return jsonify({"ok": sent})
 
+@app.route("/arduino/stop", methods=["POST"]) 
+def arduino_stop():
+    sent = _arduino_send("STOP")
+    return jsonify({"ok": sent})
+
+if __name__ == "__main__":
+    # Kick the pump into motion at startup (fast/normal depends on ARDUINO_START_CMD)
+    threading.Thread(target=_arduino_startup_kick, daemon=True).start()
+    # Start countdown timer loop
+    if not _timer_thread_started:
+        threading.Thread(target=_timer_loop, daemon=True).start()
+        _timer_thread_started = True
+    app.run(host="0.0.0.0", port=5001, debug=True)
