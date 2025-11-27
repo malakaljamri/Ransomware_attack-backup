@@ -9,6 +9,10 @@ try:
 except Exception:
     serial = None
 
+try:
+    from pymodbus.client import ModbusTcpClient  # optional Modbus control
+except Exception:
+    ModbusTcpClient = None
 import importlib.util
 from jinja2 import Environment, FileSystemLoader
 
@@ -50,6 +54,14 @@ _restore_from_backup = _load_function(os.path.join(SIM_ROOT, "restore_script.py"
 ARDUINO_PORT = os.environ.get("ARDUINO_PORT")
 ARDUINO_BAUD = int(os.environ.get("ARDUINO_BAUD", "9600"))
 ARDUINO_START_CMD = os.environ.get("ARDUINO_START_CMD", "START")
+
+# Modbus config (for Arduino Mudbus via Ethernet)
+MODBUS_IP = os.environ.get("MODBUS_IP")  # e.g. 192.168.1.177
+MODBUS_PORT = int(os.environ.get("MODBUS_PORT", "502"))
+MODBUS_REG_SPEED = int(os.environ.get("MODBUS_REG_SPEED", "6"))  # Mb.R[6]
+PUMP_MAX = int(os.environ.get("PUMP_MAX", "15000"))
+PUMP_MIN = int(os.environ.get("PUMP_MIN", "5000"))
+_mb_client = None
 
 _serial_lock = threading.Lock()
 _serial_obj = None
@@ -115,8 +127,39 @@ def _arduino_startup_kick():
         # small delay to allow server to come up and serial to settle
         time.sleep(1.5)
         _arduino_send(ARDUINO_START_CMD)
+        _pump_set_speed(PUMP_MAX)
     except Exception:
         pass
+
+def _get_modbus():
+    global _mb_client
+    if not MODBUS_IP or ModbusTcpClient is None:
+        return None
+    if _mb_client is not None:
+        return _mb_client
+    try:
+        _mb_client = ModbusTcpClient(MODBUS_IP, port=MODBUS_PORT, timeout=2)
+        _mb_client.connect()
+        _log(f"MODBUS connected {MODBUS_IP}:{MODBUS_PORT}")
+        return _mb_client
+    except Exception as e:
+        _log(f"MODBUS connect error: {e}")
+        _mb_client = None
+        return None
+
+def _pump_set_speed(value: int) -> bool:
+    # Prefer Modbus (Arduino Mudbus) if configured; else try serial commands
+    mb = _get_modbus()
+    if mb:
+        try:
+            # write holding register
+            rr = mb.write_register(MODBUS_REG_SPEED, int(value))
+            _log(f"MODBUS write R[{MODBUS_REG_SPEED}]={int(value)} result={rr}")
+            return True
+        except Exception as e:
+            _log(f"MODBUS write error: {e}")
+    # fallback: serial textual command e.g. SPEED:<value>
+    return _arduino_send(f"SPEED:{int(value)}")
 
 def _timer_loop():
     global timer
@@ -145,6 +188,7 @@ def ransom():
     _simulate_attack(LIVE_DIR, LOG_PATH)
     # Stop/lock the pump during the attack
     _arduino_send("STOP")
+    _pump_set_speed(PUMP_MIN)
     # Start/Reset timer when ransom page is shown
     global attack_active, timer
     attack_active = True
@@ -237,6 +281,7 @@ def simulate():
     summary = _simulate_attack(LIVE_DIR, LOG_PATH)
     # Optional: stop the pump during attack
     _arduino_send("STOP")
+    _pump_set_speed(PUMP_MIN)
     return jsonify({"ok": True, "action": "simulate", "summary": summary})
 
 @app.route("/restore", methods=["POST"]) 
@@ -244,6 +289,7 @@ def restore():
     summary = _restore_from_backup(BACKUP_DIR, LIVE_DIR, LOG_PATH)
     # Optional: restart the pump after restore
     _arduino_send("START")
+    _pump_set_speed(PUMP_MAX)
     # Stop the countdown on restore
     global attack_active, timer
     attack_active = False
@@ -262,6 +308,7 @@ def shutdown():
         summary = _restore_from_backup(BACKUP_DIR, LIVE_DIR, LOG_PATH)
         # Resume normal operation on Arduino
         _arduino_send("START")
+        _pump_set_speed(PUMP_MAX)
         # Stop the countdown
         global attack_active, timer
         attack_active = False
@@ -273,11 +320,13 @@ def shutdown():
 @app.route("/arduino/start", methods=["POST"]) 
 def arduino_start():
     sent = _arduino_send("START")
+    _pump_set_speed(PUMP_MAX)
     return jsonify({"ok": sent})
 
 @app.route("/arduino/stop", methods=["POST"]) 
 def arduino_stop():
     sent = _arduino_send("STOP")
+    _pump_set_speed(PUMP_MIN)
     return jsonify({"ok": sent})
 
 if __name__ == "__main__":
