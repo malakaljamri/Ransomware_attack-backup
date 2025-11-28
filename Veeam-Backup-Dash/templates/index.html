@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> Veeam Backup & Cyber Resilience Dashboard</title>
+    <link rel="stylesheet" href="/veeam/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Veeam Backup & Cyber Resilience Dashboard</h1>
+            <p>Real-time monitoring and ransomware protection status</p>
+        </header>
+
+        <div id="rw-banner" class="section" style="margin-top:10px;">
+            {% if sim_status.status == 'compromised' %}
+            <div id="rw-alert" class="metric-card danger" style="display:flex;align-items:center;justify-content:space-between;">
+                <div>
+                    <h3>Active Ransomware Incident Detected</h3>
+                    <div class="metric-subtitle">Encrypted files or ransom note found in live folder</div>
+                </div>
+                <div>
+                    <button id="btn-restore" class="btn danger">Restore from Backup</button>
+                </div>
+            </div>
+            {% else %}
+            <div id="rw-safe" class="metric-card success" style="display:flex;align-items:center;justify-content:space-between;">
+                <div>
+                    <h3>No Active Incidents</h3>
+                    <div class="metric-subtitle">Live data healthy</div>
+                </div>
+                <div>
+                    <button id="btn-simulate" class="btn warning">Simulate Attack</button>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Metrics Overview -->
+        <div class="metrics-grid">
+            <div class="metric-card success">
+                <h3>Backup Success Rate</h3>
+                <div class="metric-value">{{ metrics.success_rate }}%</div>
+                <div class="metric-subtitle">Last 7 days</div>
+            </div>
+            <div class="metric-card info">
+                <h3>Protected Jobs</h3>
+                <div class="metric-value">{{ metrics.total_jobs }}</div>
+                <div class="metric-subtitle">Active backup jobs</div>
+            </div>
+            <div class="metric-card warning">
+                <h3>Storage Used</h3>
+                <div class="metric-value">{{ metrics.storage_used_percent }}%</div>
+                <div class="metric-subtitle">Total capacity</div>
+            </div>
+             <!--this need to be calculated  -->
+            <div class="metric-card danger">
+                <h3>Security Score</h3>
+                <div class="metric-value">65%</div>
+                <div class="metric-subtitle">3-2-1-1-0 Compliance</div>
+            </div>
+        </div>
+
+        <!-- Backup Jobs Section -->
+        <div class="section">
+            <h2>Backup Jobs Status</h2>
+            <div class="jobs-grid">
+                {% for job in data.jobs %}
+                <div class="job-card {{ 'success' if job.LastResult == 'Success' else 'warning' if job.LastResult == 'Warning' else 'danger' }}">
+                    <h4>{{ job.Name }}</h4>
+                    <div class="job-status">
+                        <span class="status-badge {{ 'success' if job.LastResult == 'Success' else 'warning' if job.LastResult == 'Warning' else 'danger' }}">
+                            {{ job.LastResult }}
+                        </span>
+                    </div>
+                    <div class="job-meta">
+                        <small>Last Run: {{ job.LastRun if job.LastRun else 'Never' }}</small>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Recent Sessions -->
+        <div class="section">
+            <h2>Recent Backup Sessions</h2>
+            <div class="sessions-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Job Name</th>
+                            <th>Status</th>
+                            <th>Result</th>
+                            <th>Start Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for session in data.sessions[:13] %}
+                        <tr>
+                            <td>{{ session.Name }}</td>
+                            <td>{{ session.State }}</td>
+                            <td>
+                                <span class="status-badge {{ 'success' if session.Result == 'Success' else 'warning' if session.Result == 'Warning' else 'danger' }}">
+                                    {{ session.Result }}
+                                </span>
+                            </td>
+                            <td>{{ session.CreationTime }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Ransomware Protection Status -->
+        <div class="section">
+            <h2>Ransomware Protection Status</h2>
+            <div class="security-grid">
+                <div class="security-card">
+                    <h4>3-2-1-1-0 Compliance</h4>
+                    <div class="compliance-list">
+                        <div class="compliance-item {{ 'success' if True else 'danger' }}">
+                            <span>3 Copies of Data</span>
+                            <span>✅</span>
+                        </div>
+                        <div class="compliance-item {{ 'success' if True else 'danger' }}">
+                            <span>2 Different Media Types</span>
+                            <span>✅</span>
+                        </div>
+                        <div class="compliance-item {{ 'danger' if True else 'success' }}">
+                            <span>1 Off-site Copy</span>
+                            <span>❌</span>
+                        </div>
+                        <div class="compliance-item {{ 'success' if True else 'danger' }}">
+                            <span>1 Off-line Copy</span>
+                            <span>✅</span>
+                        </div>
+                        <div class="compliance-item {{ 'warning' if True else 'success' }}">
+                            <span>0 Errors Verified</span>
+                            <span>⚠️</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="security-card">
+                    <h4>Security Gaps</h4>
+                    <ul class="gaps-list">
+                        <li>❌ Immutable backups not configured</li>
+                        <li>❌ No cloud replication</li>
+                        <li>⚠️ Limited access controls</li>
+                        <li>⚠️ Encryption not enabled on all backups</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ransomware Simulation UI -->
+        <div class="section">
+            <h2>Ransomware Simulation</h2>
+            <div class="simulation-status-banner">
+                <h3 id="simulation-status">Simulation Status: {{ sim_status.status }}</h3>
+            </div>
+            <div class="simulation-controls">
+                <button id="btn-simulate" class="btn warning">Simulate Attack</button>
+                <button id="btn-restore" class="btn danger">Restore from Backup</button>
+            </div>
+            <div class="simulation-results">
+                <h3 id="simulation-results-title">Simulation Results</h3>
+                <div id="simulation-results-container">
+                    <!-- dynamic updates will be rendered here -->
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="/veeam/static/script.js"></script>
+</body>
+</html>

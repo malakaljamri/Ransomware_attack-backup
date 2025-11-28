@@ -1,0 +1,23 @@
+# OS junk
+.DS_Store
+
+# Python
+**/__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+Veeam-Backup-Dash/venv/
+venv/
+.env/
+
+# Logs
+Veeam-Backup-Dash/ransomware_simulation/logs/*
+logs/
+
+# Bundles / archives
+*.bundle
+*.tar
+*.tar.gz
+*.zip
